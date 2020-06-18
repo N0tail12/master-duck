@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../libfdr/dllist.h
+jval.h
+../libfdr/jval.h
+
+../libfdr/jrb.h
+jval.h
+../libfdr/jval.h
+
+../libfdr/jval.h
+
+/home/bluemoon/Desktop/sher/main.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+ctype.h
+-
+jrb.h
+-
+dllist.h
+-
+
