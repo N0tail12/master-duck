@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/bus.dir/main.c.o"
-  "../bin/bus.pdb"
   "../bin/bus"
+  "../bin/bus.pdb"
+  "CMakeFiles/bus.dir/main.c.o"
 )
 
 # Per-language clean rules from dependency scanning.

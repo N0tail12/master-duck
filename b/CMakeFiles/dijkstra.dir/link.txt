@@ -1,1 +1,0 @@
-/usr/bin/cc   -rdynamic CMakeFiles/dijkstra.dir/dijkstra.c.o  -o ../bin/dijkstra  -L/home/bluemoon/Desktop/sher/libfdr -Wl,-rpath,/home/bluemoon/Desktop/sher/libfdr -lfdr 
