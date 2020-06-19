@@ -1,3 +1,0 @@
-/mnt/e/master-duck/b/CMakeFiles/rebuild_cache.dir
-/mnt/e/master-duck/b/CMakeFiles/edit_cache.dir
-/mnt/e/master-duck/b/CMakeFiles/bus.dir
