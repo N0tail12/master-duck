@@ -1,55 +1,47 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include <ctype.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <jrb.h>
-#include <dllist.h>
-
-#define INFINITIVE_VALUE  10e6
 
 typedef struct {
-    JRB edges;
+    JRB id;
+    JRB name;
+} map_t;
+
+typedef struct {
     JRB vertices;
-} Graph;
+    JRB edges;
+} graph_t;
 
-typedef struct {
-    int id;
-    char *name;
-} vertice_t;
+// return 1 if duplicated
+int map_insert(map_t map, int *id, char *name);
+int name2id(map_t map, char *name);
+char *id2name(map_t map, int id);
 
+graph_t load_graph_from_file(char *fn, map_t *map, int *num_v);
+void add_vertice(graph_t g, int id, char *name);
+JRB get_vertice(graph_t g, int id);
+void add_edge(graph_t g, int v1, int v2, char *route);
+JRB get_edge(graph_t g, int v1, int v2);
 
-Graph loadGraphFromFile(const char *fn, int *num_v);
-
-void addVertex(Graph graph, int *id, char *name);
-JRB getVertex(Graph g, char *name);
-void addEdge(Graph graph, int v1, int v2, const char *route);
-JRB getEdge(Graph graph, int v1, int v2);
-int indegree(Graph graph, int v, int *output);
-int outdegree(Graph graph, int v, int *output);
-void dropGraph(Graph graph);
-double shortestPath(Graph graph, int s, int t, int *path, int *length);
-
-
-int vert_str_cmp_func(Jval j1, Jval j2);
-int vert_int_cmp_func(Jval j1, Jval j2);
-void graphTraverse(Graph g);
+void graph_traverse(graph_t g);
 
 int main() {
-    Graph g = loadGraphFromFile("buses.txt");
-
+    map_t map;
     int num_v = 0;
-    graphTraverse(g, &num_v);
     
-    // dropGraph(g);
+    graph_t g = load_graph_from_file("buses.txt", &map, &num_v);
+    printf("loaded %d vertices\n", num_v);
+    graph_traverse(g);
 }
 
-int BFS(Graph g, int s, int e, int num_v) {
-
-}
-
-double shortestPath(Graph graph, int s, int t, int *path, int *length) {
-
+void graph_traverse(graph_t g) {
+    JRB node;
+    jrb_traverse(node, g.vertices) {
+        printf("%d: %s\n", jval_i(node->key), jval_s(node->val));
+    }
 }
 
 int nextRoute(char *s) {
@@ -58,9 +50,8 @@ int nextRoute(char *s) {
     return i;
 }
 
-Graph loadGraphFromFile(const char *fn, int *num_v) {
-    int id = 0;
-    Graph g = {0};
+graph_t load_graph_from_file(char *fn, map_t *map, int *num_v) {
+    graph_t g = {0};
 
     FILE *f = fopen(fn, "r");
     if (!f) {
@@ -68,10 +59,13 @@ Graph loadGraphFromFile(const char *fn, int *num_v) {
         return g;
     }
 
+    map->id = make_jrb();
+    map->name = make_jrb();
+    *num_v = 0;
+
     g.edges = make_jrb();
     g.vertices = make_jrb();
 
-    int count = 0;
     char line[1000], route[100], v1[100], v2[100];
     while (fgets(line, 999, f)) {
         if (line[0] == '[') {
@@ -93,106 +87,48 @@ Graph loadGraphFromFile(const char *fn, int *num_v) {
                 s[j] = c;
 
                 if (*v2 != '\0') {
-                    addVertex(g, &id, v1);
-                    addVertex(g, &id, v2);
+                    map_insert(*map, num_v, v1);
+                    map_insert(*map, num_v, v2);
 
-                    JRB jv1 = getVertex(g, v1);
-                    JRB jv2 = getVertex(g, v2);
+                    int id_v1 = name2id(*map, v1);
+                    int id_v2 = name2id(*map, v2);
 
-                    int id_v1 = ((vertice_t*)jval_v(jv1->key))->id;
-                    int id_v2 = ((vertice_t*)jval_v(jv2->key))->id;
+                    add_vertice(g, id_v1, id2name(*map, id_v1));
+                    add_vertice(g, id_v2, id2name(*map, id_v2));
 
-                    addEdge(g, id_v1, id_v2, route);
-                    addEdge(g, id_v2, id_v1, route);
+                    add_edge(g, id_v1, id_v2, route);
+                    add_edge(g, id_v2, id_v1, route);
                 }
             }
         }
     }
 
-    *num_v = id;
     return g;
 }
 
-void graphTraverse(Graph g) {
-    JRB node;
-    jrb_traverse(node, g.vertices) {
-        vertice_t *v = jval_v(node->key);
-        printf("%d: %s\n", v->id, v->name);
-    }
-
-    jrb_traverse(node, g.edges) {
-        JRB v2, v1 = jval_v(node->val);
-        
-        jrb_traverse(v2, v1) {
-            printf("%d->%d: ", jval_i(node->key), jval_i(v2->key));
-            JRB route, routes = jval_v(v2->val);
-            jrb_traverse(route, routes) {
-                printf("%s, ", jval_s(route->key));
-            }
-            printf("\n");
-        }
-    }
-}
-
-int vert_str_cmp_func(Jval j1, Jval j2) {
-    char *s1 = ((vertice_t*)jval_v(j1))->name;
-    char *s2 = ((vertice_t*)jval_v(j2))->name;
-
-    char l1, l2;
-
-    while (*s1 && *s2) {
-        l1 = tolower(*s1);
-        l2 = tolower(*s2);
-
-        if (l1 == l2) {
-            ++s1, ++s2;
-            continue;
-        } else if (l1 > l2) return 1;
-        else return -1;
-    }
-
-    return *s1 ? 1 : *s2 ? -1 : 0;
-}
-
-int vert_int_cmp_func(Jval j1, Jval j2) {
-    int i1 = ((vertice_t*)jval_v(j1))->id;
-    int i2 = ((vertice_t*)jval_v(j2))->id;
-
-    return i1 - i2;
-}
-
-void addVertex(Graph g, int *id, char *name) {
-    vertice_t vt = {*id, name};
-    JRB node = jrb_find_gen(g.vertices, new_jval_v(&vt), vert_str_cmp_func);
-
+void add_vertice(graph_t g, int id, char *name) {
+    JRB node = jrb_find_int(g.vertices, id);
     if (node == NULL) {
-        vertice_t *v = malloc(sizeof(vertice_t));
-        v->id = *id;
-        v->name = strdup(name);
-
-        jrb_insert_gen(g.vertices, new_jval_v(v), new_jval_i((*id)++), vert_str_cmp_func);
+        jrb_insert_int(g.vertices, id, new_jval_s(name));
     }
 }
 
-JRB getVertex(Graph g, char *name) {
-    vertice_t vt = {-1, name};
-    return jrb_find_gen(g.vertices, new_jval_v(&vt), vert_str_cmp_func);
+JRB get_vertice(graph_t g, int id) {
+    return jrb_find_int(g.vertices, id);
 }
 
-
-void addEdge(Graph graph, int v1, int v2, const char *route) {
-    JRB v1v2 = getEdge(graph, v1, v2);
+void add_edge(graph_t g, int v1, int v2, char *route) {
+    JRB v1v2 = get_edge(g, v1, v2);
     if (v1v2 == NULL) {
-        JRB tree, node = jrb_find_int(graph.edges, v1);
+        JRB routes, tree, node = jrb_find_int(g.edges, v1);
         if (node == NULL) {
             tree = make_jrb();
-            jrb_insert_int(graph.edges, v1, new_jval_v(tree));
+            jrb_insert_int(g.edges, v1, new_jval_v(tree));
         } else {
             tree = jval_v(node->val);
         }
 
         node = jrb_find_int(tree, v2);
-        JRB routes;
         if (node == NULL) {
             routes = make_jrb();
             jrb_insert_int(tree, v2, new_jval_v(routes));
@@ -206,6 +142,7 @@ void addEdge(Graph graph, int v1, int v2, const char *route) {
         }
     } else {
         JRB routes = jval_v(v1v2->val);
+
         JRB node = jrb_find_str(routes, route);
         if (node == NULL) {
             jrb_insert_str(routes, strdup(route), new_jval_i(v2));
@@ -213,9 +150,34 @@ void addEdge(Graph graph, int v1, int v2, const char *route) {
     }
 }
 
-JRB getEdge(Graph graph, int v1, int v2) {
-    JRB node = jrb_find_int(graph.edges, v1);
+JRB get_edge(graph_t g, int v1, int v2) {
+    JRB node = jrb_find_int(g.edges, v1);
     if (node == NULL) return NULL;
 
-    return jrb_find_int(jval_v(node->val), v2);
+    jrb_find_int(jval_v(node->val), v2);
+}
+
+
+int name2id(map_t map, char *name) {
+    JRB node = jrb_find_str(map.name, name);
+    if (node == NULL) return -1;
+    else return jval_i(node->val);
+}
+
+char *id2name(map_t map, int id) {
+    JRB node = jrb_find_int(map.id, id);
+    if (node == NULL) return NULL;
+    else return jval_s(node->val);
+}
+
+// return 1 if duplicate
+int map_insert(map_t map, int *id, char *name) {
+    JRB node = jrb_find_str(map.name, name);
+    if (node == NULL) {
+        jrb_insert_str(map.name, name, new_jval_i(*id));
+        jrb_insert_int(map.id, *id, new_jval_s(strdup(name)));
+        ++(*id);
+        return 0;
+    }
+    return 1;
 }

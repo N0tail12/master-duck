@@ -6,10 +6,6 @@
 
 #IncludeRegexTransform: 
 
-../libfdr/dllist.h
-jval.h
-../libfdr/jval.h
-
 ../libfdr/jrb.h
 jval.h
 ../libfdr/jval.h
@@ -23,10 +19,6 @@ stdlib.h
 -
 string.h
 -
-ctype.h
--
 jrb.h
--
-dllist.h
 -
 
