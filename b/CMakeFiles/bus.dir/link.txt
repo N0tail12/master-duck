@@ -1,1 +1,0 @@
-/usr/bin/cc   -rdynamic CMakeFiles/bus.dir/main.c.o  -o ../bin/bus  -L/home/bluemoon/Desktop/sher/libfdr -Wl,-rpath,/home/bluemoon/Desktop/sher/libfdr -lfdr 

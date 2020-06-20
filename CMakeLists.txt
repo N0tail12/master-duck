@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 project(bus)
 
+set(CMAKE_BUILD_TYPE Debug)
+
 set(C_FILES main.c)
 set(C_LIBS fdr)
 

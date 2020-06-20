@@ -1,3 +1,0 @@
-/home/bluemoon/Desktop/sher/b/CMakeFiles/rebuild_cache.dir
-/home/bluemoon/Desktop/sher/b/CMakeFiles/bus.dir
-/home/bluemoon/Desktop/sher/b/CMakeFiles/edit_cache.dir
