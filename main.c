@@ -10,6 +10,10 @@
 typedef struct {
     JRB id;
     JRB name;
+    JRB routes;
+    JRB route_id;
+    int n_id;
+    int n_route;
 } map_t;
 
 typedef struct {
@@ -19,14 +23,17 @@ typedef struct {
 
 // return 1 if already has in the map
 int map_insert(map_t map, int id, char *name);
+// return 1 if already has in the map
+int map_insert_route(map_t *map, char *route);
+int map_get_route_id(map_t map, char *route);
 char *id2name(map_t map, int id);
 int name2id(map_t map, char *name);
 void free_map(map_t map);
 
-graph_t load_graph_from_file(const char *fn, map_t *map, int *n);
+graph_t load_graph_from_file(const char *fn, map_t *map);
 void add_vertice(graph_t g, int id, char *name);
 JRB get_vertice(graph_t g, int id);
-void add_edge(graph_t g, int v1, int v2, char *route);
+void add_edge(graph_t g, int v1, int v2, int route_id);
 JRB get_edge(graph_t g, int v1, int v2);
 void drop_graph(graph_t g);
 
@@ -35,10 +42,9 @@ void graph_traverse(graph_t g);
 
 int main() {
     map_t map;
-    int n;
 
-    graph_t g = load_graph_from_file("buses.txt", &map, &n);
-    printf("loaded %d vertices\n", n);
+    graph_t g = load_graph_from_file("buses.txt", &map);
+    printf("loaded %d vertices\n", map.n_id);
     // graph_traverse(g);
     
     int v1, v2;
@@ -46,7 +52,7 @@ int main() {
     scanf("%d", &v1);
     printf("v2: ");
     scanf("%d", &v2);
-    Dllist path = find_route(g, v1, v2, n);
+    Dllist path = find_route(g, v1, v2, map.n_id);
 
     if (!dll_empty(path)) {
         printf("From %s to %s\n", id2name(map, v1), id2name(map, v2));
@@ -56,7 +62,7 @@ int main() {
         printf("%s\n", id2name(map, jval_i(path->flink->val)));
     }
 
-    free_dllist(path);
+    // free_dllist(path);
     drop_graph(g);
     free_map(map);
 }
@@ -147,7 +153,7 @@ void graph_traverse(graph_t g) {
             printf("%d->%d: ", jval_i(node->key), jval_i(v2->key));
             JRB route, routes = jval_v(v2->val);
             jrb_traverse(route, routes) {
-                printf("%s, ", jval_s(route->key));
+                printf("%d, ", jval_i(route->key));
             }
             printf("\n");
         }
@@ -160,7 +166,7 @@ int nextRoute(char *s) {
     return i;
 }
 
-graph_t load_graph_from_file(const char *fn, map_t *map, int *n) {
+graph_t load_graph_from_file(const char *fn, map_t *map) {
     FILE *f = fopen(fn, "r");
     if (!f) {
         printf("Can't open file '%s'\n", fn);
@@ -169,12 +175,15 @@ graph_t load_graph_from_file(const char *fn, map_t *map, int *n) {
 
     map->id = make_jrb();
     map->name = make_jrb();
+    map->routes = make_jrb();
+    map->route_id = make_jrb();
+    map->n_id = 0;
+    map->n_route = 0;
 
     graph_t g = {0};
     g.vertices = make_jrb();
     g.edges = make_jrb();
 
-    *n = 0;
 
     char line[1000], route[100], v1[100], v2[100];
     while (fgets(line, 999, f)) {
@@ -197,10 +206,10 @@ graph_t load_graph_from_file(const char *fn, map_t *map, int *n) {
                 s[j] = c;
 
                 if (*v2 != '\0') {
-                    int dup1 = map_insert(*map, *n, v1);
-                    if (!dup1) ++(*n);
-                    int dup2 = map_insert(*map, *n, v2);
-                    if (!dup2) ++(*n);
+                    int dup1 = map_insert(*map, map->n_id, v1);
+                    if (!dup1) ++(map->n_id);
+                    int dup2 = map_insert(*map, map->n_id, v2);
+                    if (!dup2) ++(map->n_id);
 
                     int id_v1 = name2id(*map, v1);
                     int id_v2 = name2id(*map, v2);
@@ -208,8 +217,12 @@ graph_t load_graph_from_file(const char *fn, map_t *map, int *n) {
                     add_vertice(g, id_v1, id2name(*map, id_v1));
                     add_vertice(g, id_v2, id2name(*map, id_v2));
 
-                    add_edge(g, id_v1, id_v2, route);
-                    add_edge(g, id_v2, id_v1, route);
+                    int dupr = map_insert_route(map, route);
+                    if (!dupr) ++(map->n_route);
+
+                    int id_route = map_get_route_id(*map, route);
+                    add_edge(g, id_v1, id_v2, id_route);
+                    add_edge(g, id_v2, id_v1, id_route);
                 }
             }
         }
@@ -229,7 +242,7 @@ JRB get_vertice(graph_t g, int id) {
     return jrb_find_int(g.vertices, id);
 }
 
-void add_edge(graph_t g, int v1, int v2, char *route) {
+void add_edge(graph_t g, int v1, int v2, int route_id) {
     JRB v1v2 = get_edge(g, v1, v2);
     if (v1v2 == NULL) {
         JRB routes, tree, node = jrb_find_int(g.edges, v1);
@@ -248,15 +261,15 @@ void add_edge(graph_t g, int v1, int v2, char *route) {
             routes = jval_v(node->val);
         }
 
-        node = jrb_find_str(routes, route);
+        node = jrb_find_int(routes, route_id);
         if (node == NULL) {
-            jrb_insert_str(routes, strdup(route), new_jval_i(v2));
+            jrb_insert_int(routes, route_id, new_jval_i(v2));
         }
     } else {
         JRB routes = jval_v(v1v2->val);
-        JRB node = jrb_find_str(routes, route);
+        JRB node = jrb_find_int(routes, route_id);
         if (node == NULL) {
-            jrb_insert_str(routes, strdup(route), new_jval_i(v2));
+            jrb_insert_int(routes, route_id, new_jval_i(v2));
         }
     }
 }
@@ -275,11 +288,7 @@ void drop_graph(graph_t g) {
     jrb_traverse(node, g.edges) {
         JRB v2, v1 = jval_v(node->val);
         jrb_traverse(v2, v1) {
-            JRB route, routes = jval_v(v2->val);
-            jrb_traverse(route, routes) {
-                free(jval_v(route->key));
-            }
-            jrb_free_tree(routes);
+            jrb_free_tree(jval_v(v2->val));
         }
         jrb_free_tree(v1);
     }
@@ -289,8 +298,9 @@ void drop_graph(graph_t g) {
 int map_insert(map_t map, int id, char *name) {
     JRB node = jrb_find_str(map.name, name);
     if (node == NULL) {
-        jrb_insert_str(map.name, strdup(name), new_jval_i(id));
-        jrb_insert_int(map.id, id, new_jval_s(strdup(name)));
+        char *dup_name = strdup(name);
+        jrb_insert_str(map.name, dup_name, new_jval_i(id));
+        jrb_insert_int(map.id, id, new_jval_s(dup_name));
         return 0;
     }
     return 1;
@@ -308,15 +318,34 @@ int name2id(map_t map, char *name) {
     return jval_i(node->val);
 }
 
+int map_insert_route(map_t *map, char *route) {
+    JRB node = jrb_find_str(map->routes, route);
+    if (node == NULL) {
+        char *dup_route = strdup(route);
+        jrb_insert_str(map->routes, dup_route, new_jval_i(map->n_route));
+        jrb_insert_int(map->route_id, map->n_route, new_jval_s(dup_route));
+        ++(map->n_route);
+        return 0;
+    }
+    return 1;
+}
+
+int map_get_route_id(map_t map, char *route) {
+    JRB node = jrb_find_str(map.routes, route);
+    if (node == NULL) return -1;
+    return jval_i(node->val);
+}
+
 void free_map(map_t map) {
     JRB node;
     jrb_traverse(node, map.id) {
         free(jval_v(node->val));
     }
     jrb_free_tree(map.id);
+    jrb_free_tree(map.name);
 
-    jrb_traverse(node, map.name) {
+    jrb_traverse(node, map.routes) {
         free(jval_v(node->key));
     }
-    jrb_free_tree(map.name);
+    jrb_free_tree(map.routes);
 }
