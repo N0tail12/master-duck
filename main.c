@@ -21,12 +21,14 @@ typedef struct {
 int map_insert(map_t map, int id, char *name);
 char *id2name(map_t map, int id);
 int name2id(map_t map, char *name);
+void free_map(map_t map);
 
 graph_t load_graph_from_file(const char *fn, map_t *map, int *n);
 void add_vertice(graph_t g, int id, char *name);
 JRB get_vertice(graph_t g, int id);
 void add_edge(graph_t g, int v1, int v2, char *route);
 JRB get_edge(graph_t g, int v1, int v2);
+void drop_graph(graph_t g);
 
 void find_route(graph_t g, int v1, int v2, int n);
 void graph_traverse(graph_t g);
@@ -45,6 +47,9 @@ int main() {
     printf("v2: ");
     scanf("%d", &v2);
     find_route(g, v1, v2, n);
+
+    drop_graph(g);
+    free_map(map);
 }
 
 int _bfs(graph_t g, int v1, int v2, int *pre, int *dist, int n) {
@@ -86,6 +91,7 @@ int _bfs(graph_t g, int v1, int v2, int *pre, int *dist, int n) {
         }
     }
 
+    free_dllist(queue);
     free(visited);
     return 0;
 }
@@ -251,6 +257,24 @@ JRB get_edge(graph_t g, int v1, int v2) {
     return jrb_find_int(jval_v(node->val), v2);
 }
 
+void drop_graph(graph_t g) {
+    jrb_free_tree(g.vertices);
+
+    JRB node;
+    jrb_traverse(node, g.edges) {
+        JRB v2, v1 = jval_v(node->val);
+        jrb_traverse(v2, v1) {
+            JRB route, routes = jval_v(v2->val);
+            jrb_traverse(route, routes) {
+                free(jval_v(route->key));
+            }
+            jrb_free_tree(routes);
+        }
+        jrb_free_tree(v1);
+    }
+    jrb_free_tree(g.edges);
+}
+
 int map_insert(map_t map, int id, char *name) {
     JRB node = jrb_find_str(map.name, name);
     if (node == NULL) {
@@ -271,4 +295,17 @@ int name2id(map_t map, char *name) {
     JRB node = jrb_find_str(map.name, name);
     if (node == NULL) return -1;
     return jval_i(node->val);
+}
+
+void free_map(map_t map) {
+    JRB node;
+    jrb_traverse(node, map.id) {
+        free(jval_v(node->val));
+    }
+    jrb_free_tree(map.id);
+
+    jrb_traverse(node, map.name) {
+        free(jval_v(node->key));
+    }
+    jrb_free_tree(map.name);
 }
