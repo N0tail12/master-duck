@@ -30,7 +30,7 @@ void add_edge(graph_t g, int v1, int v2, char *route);
 JRB get_edge(graph_t g, int v1, int v2);
 void drop_graph(graph_t g);
 
-void find_route(graph_t g, int v1, int v2, int n);
+Dllist find_route(graph_t g, int v1, int v2, int n);
 void graph_traverse(graph_t g);
 
 int main() {
@@ -46,8 +46,17 @@ int main() {
     scanf("%d", &v1);
     printf("v2: ");
     scanf("%d", &v2);
-    find_route(g, v1, v2, n);
+    Dllist path = find_route(g, v1, v2, n);
 
+    if (!dll_empty(path)) {
+        printf("From %s to %s\n", id2name(map, v1), id2name(map, v2));
+        for (Dllist i = path->blink; i != path->flink; i = i->blink) {
+            printf("%s -> ", id2name(map, jval_i(i->val)));
+        }
+        printf("%s\n", id2name(map, jval_i(path->flink->val)));
+    }
+
+    free_dllist(path);
     drop_graph(g);
     free_map(map);
 }
@@ -96,13 +105,13 @@ int _bfs(graph_t g, int v1, int v2, int *pre, int *dist, int n) {
     return 0;
 }
 
-void find_route(graph_t g, int v1, int v2, int n) {
+Dllist find_route(graph_t g, int v1, int v2, int n) {
     int *pre = malloc(n * sizeof(int));
     int *dist = malloc(n * sizeof(int));
 
     if (_bfs(g, v1, v2, pre, dist, n) == 0) {
         printf("Can't go to %d from %d\n", v2, v1);
-        return;
+        return new_dllist();
     }
 
     Dllist path = new_dllist();
@@ -113,15 +122,17 @@ void find_route(graph_t g, int v1, int v2, int n) {
         crawl = pre[crawl];
     }
 
-    printf("From %d to %d:\n", v1, v2);
-    Dllist i;
-    dll_rtraverse(i, path) {
-        printf("%d -> ", jval_i(i->val));
-    }
+    // printf("From %d to %d:\n", v1, v2);
+    // for (Dllist i = path->blink; i != path->flink; i = i->blink) {
+    //     printf("%d -> ", jval_i(i->val));
+    // }
+    // printf("%d\n", jval_i(path->flink->val));
 
-    free_dllist(path);
+    // free_dllist(path);
     free(pre);
     free(dist);
+
+    return path;
 }
 
 void graph_traverse(graph_t g) {
