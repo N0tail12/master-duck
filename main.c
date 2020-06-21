@@ -26,6 +26,7 @@ int map_insert(map_t map, int id, char *name);
 // return 1 if already has in the map
 int map_insert_route(map_t *map, char *route);
 int map_get_route_id(map_t map, char *route);
+char *map_get_route_name(map_t map, int route_id);
 char *id2name(map_t map, int id);
 int name2id(map_t map, char *name);
 void free_map(map_t map);
@@ -38,6 +39,7 @@ JRB get_edge(graph_t g, int v1, int v2);
 void drop_graph(graph_t g);
 
 Dllist find_route(graph_t g, int v1, int v2, int n);
+void print_route(graph_t g, map_t map, Dllist path);
 void graph_traverse(graph_t g);
 
 int main() {
@@ -53,18 +55,61 @@ int main() {
     printf("v2: ");
     scanf("%d", &v2);
     Dllist path = find_route(g, v1, v2, map.n_id);
+    print_route(g, map, path);
 
-    if (!dll_empty(path)) {
-        printf("From %s to %s\n", id2name(map, v1), id2name(map, v2));
-        for (Dllist i = path->blink; i != path->flink; i = i->blink) {
-            printf("%s -> ", id2name(map, jval_i(i->val)));
-        }
-        printf("%s\n", id2name(map, jval_i(path->flink->val)));
-    }
-
-    // free_dllist(path);
+    free_dllist(path);
     drop_graph(g);
     free_map(map);
+}
+
+void update(int *best_path, int *cur_path, int n, int *best_bus, int n_bus) {
+    if (n_bus < *best_bus) {
+        *best_bus = n_bus;
+        for (int i = 0; i < n; ++i) {
+            best_path[i] = cur_path[i];
+        }
+    }
+}
+
+void tryi(graph_t g, Dllist path, int *best_path, int *cur_path, int n, int *best_bus, int i, int n_bus) {
+    if (i == n) {
+        update(best_path, cur_path, n, best_bus, n_bus);
+    } else {
+        JRB routes = jval_v(get_edge(g, jval_i(path->flink->val), jval_i(path->flink->flink->val))->val);
+        JRB route;
+        jrb_traverse(route, routes) {
+            int route_id = jval_i(route->key);
+            cur_path[i] = route_id;
+            int inc = i == 0 || (i > 0 && cur_path[i - 1] != route_id) ? 1 : 0;
+            tryi(g, path->flink, best_path, cur_path, n, best_bus, i + 1, n_bus + inc);
+        }
+    }
+}
+
+void print_route(graph_t g, map_t map, Dllist path) {
+    int n = -1;
+    for (Dllist i = dll_first(path); i != path; i = i->flink) ++n;
+    int *best_path = malloc(n * sizeof(int));
+    int *cur_path = malloc(n * sizeof(int));
+    int best_bus = INT_MAX;
+
+    tryi(g, path, best_path, cur_path, n, &best_bus, 0, 0);
+
+    printf("From %s to %s\n", id2name(map, jval_i(path->flink->val)), id2name(map, jval_i(path->blink->val)));
+    printf("%s -> ", id2name(map, jval_i(path->flink->val)));
+    printf("%s -> ", map_get_route_name(map, best_path[0]));
+
+    Dllist tmp = path->flink->flink;
+    for (int i = 1; i < n; ++i, tmp = tmp->flink) {
+        if (tmp->flink) printf("%s -> ", id2name(map, jval_i(tmp->val)));
+        if (best_path[i] != best_path[i - 1]) {
+            printf("%s -> ", map_get_route_name(map, best_path[i]));
+        }
+    }
+    printf("%s\n", id2name(map, jval_i(path->blink->val)));
+
+    free(best_path);
+    free(cur_path);
 }
 
 int _bfs(graph_t g, int v1, int v2, int *pre, int *dist, int n) {
@@ -128,13 +173,6 @@ Dllist find_route(graph_t g, int v1, int v2, int n) {
         crawl = pre[crawl];
     }
 
-    // printf("From %d to %d:\n", v1, v2);
-    // for (Dllist i = path->blink; i != path->flink; i = i->blink) {
-    //     printf("%d -> ", jval_i(i->val));
-    // }
-    // printf("%d\n", jval_i(path->flink->val));
-
-    // free_dllist(path);
     free(pre);
     free(dist);
 
@@ -334,6 +372,12 @@ int map_get_route_id(map_t map, char *route) {
     JRB node = jrb_find_str(map.routes, route);
     if (node == NULL) return -1;
     return jval_i(node->val);
+}
+
+char *map_get_route_name(map_t map, int route_id) {
+    JRB node = jrb_find_int(map.route_id, route_id);
+    if (node == NULL) return NULL;
+    return jval_s(node->val);
 }
 
 void free_map(map_t map) {
