@@ -72,6 +72,7 @@ void update(int *best_path, int *cur_path, int n, int *best_bus, int n_bus) {
 }
 
 void tryi(graph_t g, Dllist path, int *best_path, int *cur_path, int n, int *best_bus, int i, int n_bus) {
+    if (n_bus >= *best_bus) return;
     if (i == n) {
         update(best_path, cur_path, n, best_bus, n_bus);
     } else {
